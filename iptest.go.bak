@@ -1,0 +1,43 @@
+package main
+
+import (
+	"errors"
+	"fmt"
+	"net"
+)
+
+func main() {
+
+	ip, err := externalIP()
+	if err != nil {
+		fmt.Println("something wronng")
+		fmt.Println(err)
+	}
+	fmt.Println(ip)
+
+}
+func externalIP() (string, error) {
+	iface, err := net.InterfaceByName("en0")
+	if err != nil {
+		return "", err
+	}
+	addresses, err := iface.Addrs()
+	if err != nil {
+		return "", err
+	}
+	for _, address := range(addresses){
+		var ip net.IP
+		switch v := address.(type) {
+		case *net.IPNet:
+			ip = v.IP
+		case *net.IPAddr:
+			ip = v.IP
+		}
+		if ip.To4() == nil{
+			continue
+		}
+		return address.String(), nil
+	}
+
+	return "", errors.New("are you connected to the network?")
+}
