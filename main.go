@@ -68,6 +68,7 @@ func createConfig(configMapName string, prefix string) error{
 			configMapClient.Create(configMap)
 			fmt.Println("created ", cm.Name)
 		}
+		fmt.Println("prefix: ", configMap.Data["prefix"])
 		return nil
 	})
 }
