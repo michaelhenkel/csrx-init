@@ -55,7 +55,7 @@ RUN go get k8s.io/client-go/...
 
 ARG source=remote
 RUN source=${source}
-RUN go get github.com/michaelhenkel/csrx-ini
+RUN go get github.com/michaelhenkel/csrx-init
 RUN go build -o /tmp/csrx-init github.com/michaelhenkel/csrx-init
 
 FROM alpine:3.8

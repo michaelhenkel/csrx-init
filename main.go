@@ -25,7 +25,7 @@ import (
 
 
 func main(){
-        if len(os.Args) != 3 {
+	if len(os.Args) != 3 {
 		panic("wrong number of args")
 	}
 	configMapName := os.Args[1]
@@ -63,37 +63,37 @@ func createConfig(configMapName string, prefix string) error{
 			Data: map[string]string{"prefix":prefix},
 		}
 		configMapClient := clientset.CoreV1().ConfigMaps(nameSpace)
-		cm, err := configMapClient.Get("contrailcontrollernodesv1", metav1.GetOptions{})
+		cm, err := configMapClient.Get(configMapName, metav1.GetOptions{})
 		if err != nil {
 			configMapClient.Create(configMap)
-		        fmt.Println("created ", cm.Name)
+			fmt.Println("created ", cm.Name)
 		}
 		return nil
 	})
 }
 
 func externalIP(interfaceName string) (string, error) {
-        iface, err := net.InterfaceByName(interfaceName)
-        if err != nil {
-                return "", err
-        }
-        addresses, err := iface.Addrs()
-        if err != nil {
-                return "", err
-        }
-        for _, address := range(addresses){
-                var ip net.IP
-                switch v := address.(type) {
-                case *net.IPNet:
-                        ip = v.IP
-                case *net.IPAddr:
-                        ip = v.IP
-                }
-                if ip.To4() == nil{
-                        continue
-                }
-                return address.String(), nil
-        }
+	iface, err := net.InterfaceByName(interfaceName)
+	if err != nil {
+		return "", err
+	}
+	addresses, err := iface.Addrs()
+	if err != nil {
+		return "", err
+	}
+	for _, address := range(addresses){
+		var ip net.IP
+		switch v := address.(type) {
+		case *net.IPNet:
+			ip = v.IP
+		case *net.IPAddr:
+			ip = v.IP
+		}
+		if ip.To4() == nil{
+			continue
+		}
+		return address.String(), nil
+	}
 
-        return "", errors.NewBadRequest("are you connected to the network?")
+	return "", errors.NewBadRequest("are you connected to the network?")
 }
