@@ -25,7 +25,8 @@ import (
 
 func main(){
 	if len(os.Args) != 2 {
-		panic("wrong number of args")
+		fmt.Println("number of args is not 1")
+		panic("wrong number of args 1")
 	}
 	configMapName := os.Args[1]
 	err := createConfig(configMapName)
@@ -114,7 +115,7 @@ func externalIP() (map[string]string, error) {
 			if ip == nil {
 				continue // not an ipv4 address
 			}
-			ipMap[iface.Name] = ip.String()
+			ipMap[iface.Name] = addr.String()
 		}
 	}
 	return ipMap , nil
