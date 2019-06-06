@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+http://www.apache.org/licenses/LICENSE-2.0
 
 */
 package main
@@ -20,28 +20,26 @@ import (
 	"k8s.io/client-go/rest"
 	"os"
 	apiv1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 
 func main(){
-	if len(os.Args) != 3 {
+	if len(os.Args) != 2 {
 		panic("wrong number of args")
 	}
 	configMapName := os.Args[1]
-	interfaceName := os.Args[2]
-	prefix, err := externalIP(interfaceName)
-	if err != nil {
-		panic(err.Error())
-	}
-	err = createConfig(configMapName, prefix)
+	err := createConfig(configMapName)
 	if err != nil {
 		panic(err.Error())
 	}
 }
 
-func createConfig(configMapName string, prefix string) error{
+func createConfig(configMapName string) error{
 	return retry(1, time.Second, func() error {
+		ipMap, err := externalIP()
+		if err != nil {
+			panic(err.Error())
+		}
 		nameSpaceByte, err := ioutil.ReadFile("/run/secrets/kubernetes.io/serviceaccount/namespace")
 		if err != nil {
 			panic(err.Error())
@@ -59,42 +57,65 @@ func createConfig(configMapName string, prefix string) error{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: configMapName,
 				Namespace: nameSpace,
-				},
-			Data: map[string]string{"prefix":prefix},
+			},
+			Data: ipMap,
 		}
 		configMapClient := clientset.CoreV1().ConfigMaps(nameSpace)
-		cm, err := configMapClient.Get(configMapName, metav1.GetOptions{})
+		fmt.Println(configMap)
+		_, err = configMapClient.Get(configMapName, metav1.GetOptions{})
 		if err != nil {
 			configMapClient.Create(configMap)
-			fmt.Println("created ", cm.Name)
+			newCm, err := clientset.CoreV1().ConfigMaps(nameSpace).Create(configMap)
+			if err != nil {
+				panic(err.Error())
+			}
+			fmt.Println("created ", newCm.Name)
+		}
+		_, err = configMapClient.Get(configMapName, metav1.GetOptions{})
+		if err != nil {
+			fmt.Println("config map doesn't exist")
+		} else {
+			fmt.Println("config map exists")
 		}
 		fmt.Println("prefix: ", configMap.Data["prefix"])
 		return nil
 	})
 }
 
-func externalIP(interfaceName string) (string, error) {
-	iface, err := net.InterfaceByName(interfaceName)
+func externalIP() (map[string]string, error) {
+	var ipMap = make(map[string]string)
+	ifaces, err := net.Interfaces()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	addresses, err := iface.Addrs()
-	if err != nil {
-		return "", err
-	}
-	for _, address := range(addresses){
-		var ip net.IP
-		switch v := address.(type) {
-		case *net.IPNet:
-			ip = v.IP
-		case *net.IPAddr:
-			ip = v.IP
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagUp == 0 {
+			continue // interface down
 		}
-		if ip.To4() == nil{
-			continue
+		if iface.Flags&net.FlagLoopback != 0 {
+			continue // loopback interface
 		}
-		return address.String(), nil
+		addrs, err := iface.Addrs()
+		if err != nil {
+			return nil, err
+		}
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+			if ip == nil || ip.IsLoopback() {
+				continue
+			}
+			ip = ip.To4()
+			if ip == nil {
+				continue // not an ipv4 address
+			}
+			ipMap[iface.Name] = ip.String()
+		}
 	}
-
-	return "", errors.NewBadRequest("are you connected to the network?")
+	return ipMap , nil
 }
